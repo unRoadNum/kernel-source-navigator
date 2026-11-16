@@ -1,0 +1,12 @@
+.gitignore
+*.vsix
+node_modules/tree-sitter-c/**
+!node_modules/tree-sitter-c/LICENSE
+!node_modules/tree-sitter-c/tree-sitter-c.wasm
+node_modules/node-addon-api/**
+node_modules/node-gyp-build/**
+node_modules/web-tree-sitter/debug/**
+node_modules/web-tree-sitter/*.map
+node_modules/web-tree-sitter/*.d.ts
+node_modules/web-tree-sitter/*.ts
+node_modules/web-tree-sitter/*.js

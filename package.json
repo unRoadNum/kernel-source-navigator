@@ -1,0 +1,76 @@
+{
+  "name": "kernel-source-navigator",
+  "displayName": "Kernel Source Navigator",
+  "description": "Browse Linux kernel C callers and pin identifier highlights without a build.",
+  "version": "0.1.0",
+  "publisher": "local-kernel-tools",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Programming Languages"],
+  "main": "./src/extension.js",
+  "extensionKind": ["workspace"],
+  "activationEvents": ["onLanguage:c", "onLanguage:cpp"],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": { "supported": true }
+  },
+  "scripts": {
+    "package:windows": "vsce package --target win32-x64 --allow-missing-repository --skip-license -o kernel-source-navigator-0.1.0-win32-x64.vsix"
+  },
+  "dependencies": {
+    "@vscode/ripgrep": "1.18.0",
+    "tree-sitter-c": "0.24.1",
+    "web-tree-sitter": "0.26.13"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "4.1.1"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "kernelSource.findCallers",
+        "category": "Kernel Source",
+        "title": "查找静态 Callers"
+      },
+      {
+        "command": "kernelSource.toggleHighlight",
+        "category": "Kernel Source",
+        "title": "切换全局标识符高亮"
+      },
+      {
+        "command": "kernelSource.clearHighlights",
+        "category": "Kernel Source",
+        "title": "清除全部高亮"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "kernelSource.findCallers",
+          "when": "resourceScheme == file && resourceExtname =~ /^\\.[ch]$/i",
+          "group": "navigation@30"
+        },
+        {
+          "command": "kernelSource.toggleHighlight",
+          "when": "resourceScheme == file && resourceExtname =~ /^\\.[ch]$/i",
+          "group": "navigation@31"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "kernelSource.callers",
+          "name": "Kernel Callers"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "kernelSource.callers",
+        "contents": "在 C 标识符上使用编辑器右键菜单中的「查找静态 Callers」。"
+      }
+    ]
+  }
+}
