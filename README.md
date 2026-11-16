@@ -6,7 +6,7 @@
 
 用 **打开文件夹** 打开内核源码根目录。在 `.c` 或 `.h` 中把光标放在标识符上，使用编辑器右键菜单。
 
-- **查找静态 Callers** 在资源管理器的 **Kernel Callers** 中按外层函数列出调用点。单击只有一处调用的结果直接跳转。有多处调用时展开函数查看各调用点。
+- **查找静态 Callers** 在资源管理器的 **Kernel Callers** 中按外层函数列出调用点。展开 caller 函数可继续查找它的 callers，最多显示 3 层；每层也可展开查看具体调用位置。单击函数名跳转到函数定义，单击调用位置跳转到调用点。
 - **切换全局标识符高亮** 给整个工作区里已显示和之后打开的 `.c`、`.h` 文件标出同名词。可同时标记多个名称，重开工作区后恢复。再次执行可取消该名称，命令面板中的 **Kernel Source: 清除全部高亮** 可一次清除。
 
 ## 查询范围
@@ -20,7 +20,7 @@
 ```powershell
 npm.cmd ci --ignore-scripts
 npm.cmd run package:windows
-code --install-extension ./kernel-source-navigator-0.1.0-win32-x64.vsix
+code --install-extension ./kernel-source-navigator-0.2.2-win32-x64.vsix
 ```
 - npm.cmd ci --ignore-scripts 按 package-lock.json 安装依赖，并跳过依赖的安装脚本。
 - npm.cmd run package:windows 生成 Windows x64 的 .vsix 安装包。

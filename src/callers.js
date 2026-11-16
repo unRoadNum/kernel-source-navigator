@@ -159,7 +159,16 @@ async function findCallers({ root, name, origin, documents = [], signal }) {
       (#eq? @callee "${name}"))
   `);
   try {
-    const localOnly = isStaticDefinition(parser, origin, name);
+    let originText = origin?.text;
+    if (origin && originText === undefined) {
+      try {
+        originText = await readFile(origin.file, { encoding: 'utf8', signal });
+      } catch (error) {
+        signal?.throwIfAborted();
+      }
+    }
+    const localOnly = isStaticDefinition(parser,
+      origin && originText !== undefined ? { ...origin, text: originText } : undefined, name);
     const { files, warning } = localOnly
       ? { files: [origin.file], warning: '' }
       : await candidateFiles(root, name, signal);

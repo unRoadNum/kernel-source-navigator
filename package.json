@@ -2,7 +2,7 @@
   "name": "kernel-source-navigator",
   "displayName": "Kernel Source Navigator",
   "description": "Browse Linux kernel C callers and pin identifier highlights without a build.",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "publisher": "local-kernel-tools",
   "engines": {
     "vscode": "^1.90.0"
@@ -16,7 +16,7 @@
     "untrustedWorkspaces": { "supported": true }
   },
   "scripts": {
-    "package:windows": "vsce package --target win32-x64 --allow-missing-repository --skip-license -o kernel-source-navigator-0.1.0-win32-x64.vsix"
+    "package:windows": "vsce package --target win32-x64 --allow-missing-repository --skip-license -o kernel-source-navigator-0.2.2-win32-x64.vsix"
   },
   "dependencies": {
     "@vscode/ripgrep": "1.18.0",
