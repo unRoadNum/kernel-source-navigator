@@ -1,5 +1,6 @@
 .gitignore
 *.vsix
+test/**
 node_modules/tree-sitter-c/**
 !node_modules/tree-sitter-c/LICENSE
 !node_modules/tree-sitter-c/tree-sitter-c.wasm

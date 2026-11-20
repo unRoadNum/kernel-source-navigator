@@ -56,9 +56,9 @@ class CallersProvider {
 
   async getChildren(element) {
     if (!element) {
-      return this.callers.map(caller => ({ ...caller, kind: 'caller', level: 1, ancestry: new Set([caller.name]) }));
+      return this.callers.map(caller => ({ ...caller, kind: caller.kind ?? 'caller', level: 1, ancestry: new Set([caller.name]) }));
     }
-    if (element.kind === 'site') {
+    if (element.kind === 'site' || element.kind === 'registration') {
       return [];
     }
     const sites = element.calls?.map(point => ({ kind: 'site', file: element.file, position: point })) ?? [];
@@ -70,7 +70,7 @@ class CallersProvider {
       .filter(parent => !element.ancestry.has(parent.name))
       .map(parent => ({
         ...parent,
-        kind: 'caller',
+        kind: parent.kind ?? 'caller',
         level: element.level + 1,
         ancestry: new Set([...element.ancestry, parent.name])
       }));
@@ -78,6 +78,14 @@ class CallersProvider {
   }
 
   getTreeItem(element) {
+    if (element.kind === 'registration') {
+      const item = new vscode.TreeItem(`${element.name} [钩子注册]`, vscode.TreeItemCollapsibleState.None);
+      item.description = `${vscode.workspace.asRelativePath(element.file)}:${element.position.row + 1}`;
+      item.tooltip = '函数地址写入全局变量或其成员；点击跳转到注册位置。';
+      item.iconPath = new vscode.ThemeIcon('plug');
+      item.command = openCommand(element.file, element.position);
+      return item;
+    }
     if (element.kind === 'site') {
       const { file, position: point } = element;
       const item = new vscode.TreeItem(
@@ -152,8 +160,9 @@ function activate(context) {
       }
       const { results, warning, unreadable, localOnly } = result;
       const sites = results.reduce((total, caller) => total + caller.calls.length, 0);
+      const registrations = results.filter(item => item.kind === 'registration').length;
       const scope = localOnly ? '当前 .c 文件的 static 定义' : '当前工作区文件夹';
-      view.message = `${scope} · ${results.length} 个候选 caller · ${sites} 处调用`;
+      view.message = `${scope} · ${results.length - registrations} 个候选 caller · ${sites} 处调用 · ${registrations} 处钩子注册`;
       if (warning || unreadable.length) {
         view.message += ' · 部分文件无法读取，详见 Kernel Source Navigator 输出';
         output.appendLine([`查找 ${name}`, warning, ...unreadable].filter(Boolean).join('\n'));

@@ -120,7 +120,94 @@ function isStaticDefinition(parser, origin, name) {
   }
 }
 
-function collectCalls(parser, query, text, file) {
+function declaratorName(node) {
+  while (node && node.type !== 'identifier') {
+    node = node.type === 'parenthesized_declarator'
+      ? node.firstNamedChild : node.childForFieldName('declarator');
+  }
+  return node;
+}
+
+function globalDeclarations(root) {
+  return root.descendantsOfType('declaration').filter(node => {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (['function_definition', 'compound_statement', 'struct_specifier', 'union_specifier'].includes(parent.type)) {
+        return false;
+      }
+    }
+    return !node.namedChildren.some(child => child.type === 'storage_class_specifier' && child.text === 'typedef');
+  });
+}
+
+function assignmentTarget(node) {
+  if (node?.type === 'identifier') return { root: node.text, label: node.text };
+  if (node?.type === 'field_expression' && node.childForFieldName('operator')?.text === '.') {
+    const base = assignmentTarget(node.childForFieldName('argument'));
+    return base && { root: base.root, label: `${base.label}.${node.childForFieldName('field').text}` };
+  }
+  return undefined;
+}
+
+function isShadowed(node, name) {
+  const fn = enclosingFunction(node);
+  if (!fn) return false;
+  const parameters = fn.childForFieldName('declarator').descendantsOfType('parameter_declaration');
+  if (parameters.some(param => declaratorName(param.childForFieldName('declarator'))?.text === name)) return true;
+  for (let scope = node.parent; scope && scope.id !== fn.id; scope = scope.parent) {
+    if (!['compound_statement', 'for_statement'].includes(scope.type)) continue;
+    for (const declaration of scope.descendantsOfType('declaration')) {
+      let owner = declaration.parent;
+      while (owner && !['compound_statement', 'for_statement'].includes(owner.type)) owner = owner.parent;
+      if (owner?.id !== scope.id) continue;
+      if (declaration.childrenForFieldName('declarator').some(d => declaratorName(d)?.text === name)) return true;
+    }
+  }
+  return false;
+}
+
+function collectRegistrations(tree, query, file) {
+  const globals = new Set();
+  const declarations = globalDeclarations(tree.rootNode);
+  for (const declaration of declarations) {
+    for (const d of declaration.childrenForFieldName('declarator')) {
+      const name = declaratorName(d);
+      if (name) globals.add(name.text);
+    }
+  }
+  const registrations = [];
+  for (const { node } of query.captures(tree.rootNode)) {
+    let value = node;
+    while (value.parent?.type === 'parenthesized_expression' ||
+      (value.parent?.type === 'pointer_expression' && value.parent.childForFieldName('operator')?.text === '&')) {
+      value = value.parent;
+    }
+    const parent = value.parent;
+    let label;
+    if (parent?.type === 'assignment_expression' && parent.childForFieldName('right')?.id === value.id &&
+      parent.childForFieldName('operator')?.text === '=') {
+      const target = assignmentTarget(parent.childForFieldName('left'));
+      if (target && globals.has(target.root) && !isShadowed(parent, target.root)) label = target.label;
+    } else {
+      let current = value;
+      let suffix = '';
+      while (current.parent?.type === 'initializer_pair' && current.parent.childForFieldName('value')?.id === current.id) {
+        const pair = current.parent;
+        suffix = pair.childrenForFieldName('designator').map(d => d.text).join('') + suffix;
+        current = pair.parent;
+      }
+      const init = current.parent;
+      if (init?.type === 'init_declarator' && init.childForFieldName('value')?.id === current.id &&
+        declarations.some(d => d.id === init.parent?.id)) {
+        const name = declaratorName(init.childForFieldName('declarator'));
+        if (name) label = name.text + suffix;
+      }
+    }
+    if (label) registrations.push({ kind: 'registration', file, name: label, position: node.startPosition, calls: [] });
+  }
+  return registrations;
+}
+
+function collectCalls(parser, query, registrationQuery, text, file) {
   const tree = parseSource(parser, text);
   try {
     const callers = new Map();
@@ -141,7 +228,7 @@ function collectCalls(parser, query, text, file) {
       }
       result.calls.push(callee.startPosition);
     }
-    return [...callers.values()];
+    return [...callers.values(), ...collectRegistrations(tree, registrationQuery, file)];
   } finally {
     tree.delete();
   }
@@ -158,6 +245,7 @@ async function findCallers({ root, name, origin, documents = [], signal }) {
     ((call_expression function: (identifier) @callee)
       (#eq? @callee "${name}"))
   `);
+  const registrationQuery = new Query(c, `((identifier) @hook (#eq? @hook "${name}"))`);
   try {
     let originText = origin?.text;
     if (origin && originText === undefined) {
@@ -200,7 +288,7 @@ async function findCallers({ root, name, origin, documents = [], signal }) {
         }
       }
       if (spelling.test(source)) {
-        results.push(...collectCalls(parser, query, source.replace(/^\uFEFF/, ''), file));
+        results.push(...collectCalls(parser, query, registrationQuery, source.replace(/^\uFEFF/, ''), file));
       }
     }
     signal?.throwIfAborted();
@@ -208,6 +296,7 @@ async function findCallers({ root, name, origin, documents = [], signal }) {
     return { results, warning, unreadable, localOnly };
   } finally {
     query.delete();
+    registrationQuery.delete();
     parser.delete();
   }
 }
